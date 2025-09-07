@@ -1,7 +1,16 @@
 name: Deploy React App to S3
 
 on:
-  workflow_dispatch:   # 👈 allows manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Choose environment to deploy"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
 
 jobs:
   deploy:
@@ -25,7 +34,7 @@ jobs:
       - name: Deploy to S3
         uses: aws-actions/s3-sync@v2
         with:
-          bucket: my-react-app
+          bucket: ${{ github.event.inputs.environment == 'prod' && 'my-react-app-prod' || 'my-react-app-dev' }}
           region: us-east-1
           source-dir: build
         env:
@@ -33,9 +42,10 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Invalidate CloudFront cache
+        if: ${{ github.event.inputs.environment == 'prod' }}
         uses: chetan/invalidate-cloudfront-action@v2
         with:
-          distribution: YOUR_CLOUDFRONT_DIST_ID
+          distribution: YOUR_PROD_CLOUDFRONT_DIST_ID
           paths: "/*"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
